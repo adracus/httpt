@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"io"
@@ -40,6 +41,9 @@ var (
 
 	file string
 
+	insecure          bool
+	disableKeepAlives bool
+
 	dumpRequest  bool
 	dumpResponse bool
 
@@ -47,11 +51,17 @@ var (
 )
 
 func init() {
-	flag.Var(&header, "H", "header value")
 	flag.StringVar(&method, "method", http.MethodGet, "HTTP method to use for the request")
+	flag.Var(&header, "H", "header value")
+
 	flag.StringVar(&file, "f", "", "file to use for the request body")
+
+	flag.BoolVar(&insecure, "i", false, "whether to do insecure https or not")
+	flag.BoolVar(&disableKeepAlives, "disable-keep-alives", false, "whether to disable the reuse of tcp connections")
+
 	flag.BoolVar(&dumpRequest, "dump-request", false, "Whether to dump the request or not")
 	flag.BoolVar(&dumpResponse, "dump-response", false, "Whether to dump the response or not")
+
 	flag.BoolVar(&dumpResponseBody, "dump-response-body", false, "Whether to dump the response body or not")
 }
 
@@ -83,6 +93,17 @@ func main() {
 		panicf("Could not create request: %v", err)
 	}
 	req.Header = http.Header(header)
+
+	transport := http.DefaultTransport.(*http.Transport)
+	if insecure {
+		transport.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
+
+	if disableKeepAlives {
+		transport.DisableKeepAlives = true
+	}
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
