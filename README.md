@@ -1,4 +1,4 @@
-#httpt
+# httpt
 *Tiny http client used for go http/tcp stack testing*
 
 `httpt` is a command line utility to do (in the farthest sense) cURL like
