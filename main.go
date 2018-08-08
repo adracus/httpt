@@ -36,22 +36,22 @@ func (s *headerFlag) Set(value string) error {
 
 var (
 	method string
+	header = headerFlag(http.Header{})
 
-	header headerFlag = headerFlag(http.Header{})
+	file string
 
 	dumpRequest  bool
 	dumpResponse bool
 
-	dumpRequestBody  bool
 	dumpResponseBody bool
 )
 
 func init() {
 	flag.Var(&header, "H", "header value")
 	flag.StringVar(&method, "method", http.MethodGet, "HTTP method to use for the request")
+	flag.StringVar(&file, "f", "", "file to use for the request body")
 	flag.BoolVar(&dumpRequest, "dump-request", false, "Whether to dump the request or not")
 	flag.BoolVar(&dumpResponse, "dump-response", false, "Whether to dump the response or not")
-	flag.BoolVar(&dumpRequestBody, "dump-request-body", false, "Whether to dump the request body or not")
 	flag.BoolVar(&dumpResponseBody, "dump-response-body", false, "Whether to dump the response body or not")
 }
 
@@ -67,7 +67,18 @@ func main() {
 	}
 
 	url := args[0]
-	req, err := http.NewRequest(method, url, nil)
+
+	var body io.ReadCloser
+	if file != "" {
+		var err error
+		body, err = os.Open(file)
+		if err != nil {
+			panicf("Could not open file %q: %v", err)
+		}
+		defer body.Close()
+	}
+
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		panicf("Could not create request: %v", err)
 	}
@@ -80,7 +91,7 @@ func main() {
 	defer res.Body.Close()
 
 	if dumpRequest {
-		dumpedRequest, err := httputil.DumpRequest(res.Request, dumpRequestBody)
+		dumpedRequest, err := httputil.DumpRequest(res.Request, false)
 		if err != nil {
 			fmt.Printf("Could not dump request: %v\n", err)
 		}
