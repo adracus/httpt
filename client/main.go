@@ -147,7 +147,7 @@ func getTLSClientConfig() (*tls.Config, error) {
 }
 
 func getTransportForClient() (http.RoundTripper, error) {
-	if needsCustomTransport() {
+	if !needsCustomTransport() {
 		return nil, nil
 	}
 
@@ -173,7 +173,7 @@ func getTransportForClient() (http.RoundTripper, error) {
 }
 
 func getClient() (*http.Client, error) {
-	if needsCustomClient() {
+	if !needsCustomClient() {
 		return http.DefaultClient, nil
 	}
 
