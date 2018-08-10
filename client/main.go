@@ -305,13 +305,14 @@ func monitorWorkers(workers []*Worker) *Stats {
 
 type Stats struct {
 	sync.Mutex
-	failedRequests         []error
+	failedRequests         int
 	failedRequestDurations []time.Duration
 
-	failedResponseReads         []error
+	failedResponseReads         int
 	failedResponseReadDurations []time.Duration
 
-	successDurations []time.Duration
+	successStatusCodes map[int]int
+	successDurations   []time.Duration
 }
 
 func (s *Stats) ReportFailedRequest(err error, duration time.Duration) {
@@ -319,7 +320,7 @@ func (s *Stats) ReportFailedRequest(err error, duration time.Duration) {
 		s.Lock()
 		defer s.Unlock()
 
-		s.failedRequests = append(s.failedRequests, err)
+		s.failedRequests++
 		s.failedRequestDurations = append(s.failedRequestDurations, duration)
 	}
 }
@@ -329,17 +330,21 @@ func (s *Stats) ReportFailedResponseRead(err error, duration time.Duration) {
 		s.Lock()
 		defer s.Unlock()
 
-		s.failedResponseReads = append(s.failedResponseReads, err)
+		s.failedResponseReads++
 		s.failedResponseReadDurations = append(s.failedResponseReadDurations, duration)
 	}
 }
 
-func (s *Stats) ReportSuccess(duration time.Duration) {
+func (s *Stats) ReportSuccess(status int, duration time.Duration) {
 	if reportStats {
 		s.Lock()
 		defer s.Unlock()
 
 		s.successDurations = append(s.successDurations, duration)
+		if s.successStatusCodes == nil {
+			s.successStatusCodes = make(map[int]int)
+		}
+		s.successStatusCodes[status]++
 	}
 }
 
@@ -365,7 +370,7 @@ func monitorWorker(wg *sync.WaitGroup, stats *Stats, worker *Worker) {
 		}
 
 		worker.Print(string(response.Data))
-		stats.ReportSuccess(result.Duration)
+		stats.ReportSuccess(response.Status, result.Duration)
 	}
 }
 
@@ -383,13 +388,17 @@ func MeanDuration(durations []time.Duration) time.Duration {
 
 func printStats(stats *Stats) {
 	if reportStats {
-		logrus.Infof("no of failed requests: %d", len(stats.failedRequests))
-		logrus.Infof("no of failed response reads: %d", len(stats.failedResponseReads))
+		logrus.Infof("no of failed requests: %d", stats.failedRequests)
+		logrus.Infof("no of failed response reads: %d", stats.failedResponseReads)
 		logrus.Infof("no of successful requests: %d", len(stats.successDurations))
 
 		logrus.Infof("mean time for failed requests: %s", MeanDuration(stats.failedRequestDurations))
 		logrus.Infof("mean time for failed body reads: %s", MeanDuration(stats.failedResponseReadDurations))
 		logrus.Infof("mean time for successful requests: %s", MeanDuration(stats.successDurations))
+
+		for code, count := range stats.successStatusCodes {
+			logrus.Infof("Status code %d (%s) occurred %d times", code, http.StatusText(code), count)
+		}
 	}
 }
 

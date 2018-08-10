@@ -13,6 +13,6 @@ for os in ${SUPPORTED_OS[@]}; do
   for binary in ${BINARIES[@]}; do
     CGO_ENABLED=0 GOOS="$os" GOARCH=amd64 go build -a -o "$out_dir/$binary" "$SCRIPT_ROOT/$binary/main.go"
   done
-  tar -zcf "$BIN_DIR/$name.tar.gz" "$out_dir"
+  tar -zcf "$BIN_DIR/$name.tar.gz" -C "$BIN_DIR" "$name"
 done
 
